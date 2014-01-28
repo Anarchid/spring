@@ -241,6 +241,50 @@ S3DModel* CAssParser::Load(const std::string& modelFilePath)
 }
 
 
+void CAssParser::LoadBones(SAssPiece* piece, unsigned int meshIndex, const aiMesh* mesh) {
+	LOG_SL(LOG_SECTION_MODEL, L_INFO, "Processing bones for mesh %d (total %d)", meshIndex, mesh->mNumBones);
+	piece->bones.reserve(piece->bones.size() + mesh->mNumBones);	
+	for (unsigned int i = 0 ; i < mesh->mNumBones ; i++) {
+		SAssBone bone;
+		
+		unsigned int boneIndex = 0;
+		const aiBone* boneNode = mesh->mBones[i];		
+		bone.name = boneNode->mName.data;
+
+		LOG_SL(LOG_SECTION_MODEL, L_INFO, "Bone %d (name: %s, weights: %d)", i, bone.name.c_str(), boneNode->mNumWeights);
+		
+		bone.weights.resize(boneNode->mNumWeights, 0);
+		bone.vertexIDs.resize(boneNode->mNumWeights, 0);
+		for (unsigned int j = 0 ; j < boneNode->mNumWeights ; j++) {
+			//CHECKME: do we need a BaseVertex (ogldev #38)?
+			unsigned int vertexID = boneNode->mWeights[j].mVertexId /* + m_Entries[MeshIndex].BaseVertex*/;
+			float weight  = boneNode->mWeights[j].mWeight;
+			
+			bone.vertexIDs[j] = vertexID;
+			bone.weights[j] = weight;
+		}
+		//FIXME: there must be a faster way to convert from aiMatrix4x4 to CMatrix44f
+		for (unsigned int row = 0; row < 4; row++) {
+			for (unsigned int column = 0; column < 4; column++) {
+				//CHECKME: is aiMatrix4x4 really row major?
+				bone.offsetMatrix[column * 4 + row] = boneNode->mOffsetMatrix[row][column];
+			}
+		}		
+		/*if (m_BoneMapping.find(BoneName) == m_BoneMapping.end()) {
+			// Allocate an index for a new bone
+			BoneIndex = m_NumBones;
+			m_NumBones++;            
+			BoneInfo bi;			
+			m_BoneInfo.push_back(bi);
+			m_BoneInfo[BoneIndex].BoneOffset = pMesh->mBones[i]->mOffsetMatrix;
+			m_BoneMapping[BoneName] = BoneIndex;
+		}
+		else {
+			BoneIndex = m_BoneMapping[BoneName];
+		}                      
+		*/
+	}    
+}
 /*
 void CAssParser::CalculateModelMeshBounds(S3DModel* model, const aiScene* scene)
 {
@@ -580,6 +624,10 @@ void CAssParser::LoadPieceGeometry(SAssPiece* piece, const aiNode* pieceNode, co
 				piece->vertexDrawIndices.push_back(vertexDrawIdx);
 			}
 		}
+	
+		// Load bones
+		LoadBones(piece, meshIndex, mesh);
+    
 	}
 
 	piece->SetHasGeometryData(!piece->vertices.empty());
