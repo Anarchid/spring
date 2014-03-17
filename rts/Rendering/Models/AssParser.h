@@ -8,12 +8,14 @@
 #include "IModelParser.h"
 #include "System/float3.h"
 #include "System/type2.h"
+#include "System/Matrix44f.h"
 
 #define NUM_MODEL_TEXTURES 2
 #define NUM_MODEL_UVCHANNS 2
 
 struct aiNode;
 struct aiScene;
+struct aiMesh;
 class LuaTable;
 
 struct SAssVertex {
@@ -30,6 +32,24 @@ struct SAssVertex {
 	//< overkill (for now)
 	float2 texCoords[NUM_MODEL_UVCHANNS];
 };
+
+struct SAssBone {
+	std::string name;	
+	std::vector<float> weights;
+	std::vector<unsigned int> vertexIDs;
+	CMatrix44f offsetMatrix;
+};
+
+/*struct BoneInfo
+{
+	Matrix4f BoneOffset;
+	Matrix4f FinalTransformation;        
+
+	BoneInfo() {
+		BoneOffset.SetZero();
+		FinalTransformation.SetZero();            
+	}
+};*/
 
 struct SAssPiece: public S3DModelPiece
 {
@@ -53,6 +73,7 @@ struct SAssPiece: public S3DModelPiece
 
 public:
 	std::vector<SAssVertex> vertices;
+	std::vector<SAssBone> bones;
 	std::vector<unsigned int> vertexDrawIndices;
 
 	unsigned int numTexCoorChannels;
@@ -71,6 +92,7 @@ private:
 	static void LoadPieceTransformations(SAssPiece* piece, const S3DModel* model, const aiNode* pieceNode, const LuaTable& pieceTable);
 	static void LoadPieceGeometry(SAssPiece* piece, const aiNode* pieceNode, const aiScene* scene);
 	static SAssPiece* LoadPiece(S3DModel* model, const aiNode* pieceNode, const aiScene* scene, const LuaTable& modelTable);
+	static void LoadBones(SAssPiece* piece, unsigned int meshIndex, const aiMesh* mesh);
 
 	static void BuildPieceHierarchy(S3DModel* model);
 	static void CalculateModelDimensions(S3DModel* model, S3DModelPiece* piece);
