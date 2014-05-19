@@ -213,9 +213,18 @@ void WorldObjectModelRendererOBJ::PopRenderState() // TODO implement me
 
 void WorldObjectModelRendererASS::PushRenderState() // TODO implement me
 {
+	// SKINNING: enable skinning shader
 }
 void WorldObjectModelRendererASS::PopRenderState() // TODO implement me
 {
+	// SKINNING: disable skinning shader
+}
+
+void WorldObjectModelRendererASS::DrawModel(const CUnit* u)
+{
+	// SKINNING: tell Skinning singleton to upload this model's skeleton to buffer
+	// Or just do it right here, right now? Need to find the bone matrices first...
+	LOG_L(L_DEBUG, "[%s(%s)] id=%d", __FUNCTION__, "CUnit", u->id);
 }
 
 void WorldObjectModelRendererS3O::DrawModel(const CUnit* u)

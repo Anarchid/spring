@@ -122,6 +122,7 @@ public:
 	WorldObjectModelRendererASS(): IWorldObjectModelRenderer(MODELTYPE_ASS) {}
 	void PushRenderState();
 	void PopRenderState();
+	//SKINNING: add DrawModel(const CUnit*) override to inflict skinning data for each instance.
 };
 
 #endif

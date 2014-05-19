@@ -240,81 +240,25 @@ S3DModel* CAssParser::Load(const std::string& modelFilePath)
 	return model;
 }
 
-
-void CAssParser::LoadBones(SAssPiece* piece, unsigned int meshIndex, const aiMesh* mesh) {
+/**
+ * Put this piece's bones into model's global index if necessary
+ * This should return a map of all weighted vertices
+ * to their corresponding boneid / weight combinations
+ * A map of maps? Or a map of vectors? Likely latter.
+ */
+void CAssParser::LoadPieceBones(SAssPiece* piece, unsigned int meshIndex, const aiMesh* mesh, S3DModel* model) {
 	LOG_SL(LOG_SECTION_MODEL, L_INFO, "Processing bones for mesh %d (total %d)", meshIndex, mesh->mNumBones);
-	piece->bones.reserve(piece->bones.size() + mesh->mNumBones);	
-	for (unsigned int i = 0 ; i < mesh->mNumBones ; i++) {
-		SAssBone bone;
-		
-		unsigned int boneIndex = 0;
-		const aiBone* boneNode = mesh->mBones[i];		
-		bone.name = boneNode->mName.data;
 
-		LOG_SL(LOG_SECTION_MODEL, L_INFO, "Bone %d (name: %s, weights: %d)", i, bone.name.c_str(), boneNode->mNumWeights);
-		
-		bone.weights.resize(boneNode->mNumWeights, 0);
-		bone.vertexIDs.resize(boneNode->mNumWeights, 0);
-		for (unsigned int j = 0 ; j < boneNode->mNumWeights ; j++) {
-			//CHECKME: do we need a BaseVertex (ogldev #38)?
-			unsigned int vertexID = boneNode->mWeights[j].mVertexId /* + m_Entries[MeshIndex].BaseVertex*/;
-			float weight  = boneNode->mWeights[j].mWeight;
-			
-			bone.vertexIDs[j] = vertexID;
-			bone.weights[j] = weight;
-		}
-		//FIXME: there must be a faster way to convert from aiMatrix4x4 to CMatrix44f
-		for (unsigned int row = 0; row < 4; row++) {
-			for (unsigned int column = 0; column < 4; column++) {
-				//CHECKME: is aiMatrix4x4 really row major?
-				bone.offsetMatrix[column * 4 + row] = boneNode->mOffsetMatrix[row][column];
-			}
-		}		
-		/*if (m_BoneMapping.find(BoneName) == m_BoneMapping.end()) {
-			// Allocate an index for a new bone
-			BoneIndex = m_NumBones;
-			m_NumBones++;            
-			BoneInfo bi;			
-			m_BoneInfo.push_back(bi);
-			m_BoneInfo[BoneIndex].BoneOffset = pMesh->mBones[i]->mOffsetMatrix;
-			m_BoneMapping[BoneName] = BoneIndex;
-		}
-		else {
-			BoneIndex = m_BoneMapping[BoneName];
-		}                      
-		*/
+	for (unsigned int i = 0 ; i < mesh->mNumBones ; i++) {
+        const aiBone* bone = mesh->mBones[i];
+        std::string boneName = (bone->mName.data);
+
+        if (model->boneIndexMap::count(boneName) == 0){
+            model->boneIndexMap[boneName] = model->numBones;
+            model->numBones++;
+        }
 	}    
 }
-/*
-void CAssParser::CalculateModelMeshBounds(S3DModel* model, const aiScene* scene)
-{
-	model->meshBounds.resize(scene->mNumMeshes * 2);
-
-	// calculate bounds for each individual mesh of
-	// the model; currently we have no use for this
-	// and S3DModel has only one pair of bounds
-	//
-	for (size_t i = 0; i < scene->mNumMeshes; i++) {
-		const aiMesh* mesh = scene->mMeshes[i];
-
-		float3& mins = model->meshBounds[i*2 + 0];
-		float3& maxs = model->meshBounds[i*2 + 1];
-
-		mins = DEF_MIN_SIZE;
-		maxs = DEF_MAX_SIZE;
-
-		for (size_t vertexIndex= 0; vertexIndex < mesh->mNumVertices; vertexIndex++) {
-			const aiVector3D& aiVertex = mesh->mVertices[vertexIndex];
-			mins = std::min(mins, aiVectorToFloat3(aiVertex));
-			maxs = std::max(maxs, aiVectorToFloat3(aiVertex));
-		}
-
-		if (mins == DEF_MIN_SIZE) { mins = ZeroVector; }
-		if (maxs == DEF_MAX_SIZE) { maxs = ZeroVector; }
-	}
-}
-*/
-
 
 void CAssParser::LoadPieceTransformations(
 	SAssPiece* piece,
@@ -530,12 +474,15 @@ void CAssParser::SetPieceParentName(
 	}
 }
 
-void CAssParser::LoadPieceGeometry(SAssPiece* piece, const aiNode* pieceNode, const aiScene* scene)
-{
+void CAssParser::LoadPieceGeometry(SAssPiece* piece, S3DModel* model, const aiNode* pieceNode, const aiScene* scene)
+{	// SKINNING: this is where it parses E V E R Y O N E, so node boneID's too.
 	// Get vertex data from node meshes
 	for (unsigned meshListIndex = 0; meshListIndex < pieceNode->mNumMeshes; ++meshListIndex) {
 		const unsigned int meshIndex = pieceNode->mMeshes[meshListIndex];
 		const aiMesh* mesh = scene->mMeshes[meshIndex];
+
+        // Load bones
+        LoadPieceBones(piece, meshIndex, mesh, model);
 
 		LOG_SL(LOG_SECTION_PIECE, L_DEBUG, "Fetching mesh %d from scene", meshIndex);
 		LOG_SL(LOG_SECTION_PIECE, L_DEBUG,
@@ -551,6 +498,8 @@ void CAssParser::LoadPieceGeometry(SAssPiece* piece, const aiNode* pieceNode, co
 		piece->vertexDrawIndices.reserve(piece->vertexDrawIndices.size() + mesh->mNumFaces * 3);
 
 		std::vector<unsigned> mesh_vertex_mapping;
+
+        //AiBone zorgzor = mesh->mBones[i]
 
 		// extract vertex data per mesh
 		for (unsigned vertexIndex = 0; vertexIndex < mesh->mNumVertices; ++vertexIndex) {
@@ -624,10 +573,6 @@ void CAssParser::LoadPieceGeometry(SAssPiece* piece, const aiNode* pieceNode, co
 				piece->vertexDrawIndices.push_back(vertexDrawIdx);
 			}
 		}
-	
-		// Load bones
-		LoadBones(piece, meshIndex, mesh);
-    
 	}
 
 	piece->SetHasGeometryData(!piece->vertices.empty());
@@ -667,7 +612,8 @@ SAssPiece* CAssParser::LoadPiece(
 	if (SetModelRadiusAndHeight(model, piece, pieceNode, pieceTable))
 		return NULL;
 
-	LoadPieceGeometry(piece, pieceNode, scene);
+
+	LoadPieceGeometry(piece, model, pieceNode, scene);
 	SetPieceParentName(piece, model, pieceNode, pieceTable);
 
 	// Verbose logging of piece properties
@@ -856,8 +802,12 @@ void CAssParser::FindTextures(
 
 void SAssPiece::UploadGeometryVBOs()
 {
+
 	if (!hasGeometryData)
 		return;
+
+
+	// SKINNING: This is where i should attach vertex attributes?
 
 	//FIXME share 1 VBO for ALL models
 	vboAttributes.Bind(GL_ARRAY_BUFFER);
@@ -879,6 +829,7 @@ void SAssPiece::DrawForList() const
 	if (!hasGeometryData)
 		return;
 
+	// SKINNING: THIS DEALS WITH ATTRIBUTES. Maybe i should do bones stuff here.
 	vboAttributes.Bind(GL_ARRAY_BUFFER);
 		glEnableClientState(GL_VERTEX_ARRAY);
 		glVertexPointer(3, GL_FLOAT, sizeof(SAssVertex), vboAttributes.GetPtr(offsetof(SAssVertex, pos)));

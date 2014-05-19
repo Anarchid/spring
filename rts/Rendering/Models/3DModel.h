@@ -38,6 +38,9 @@ struct LocalModelPiece;
 
 typedef std::map<std::string, S3DModelPiece*> ModelPieceMap;
 
+// yeah it's just a reverse array of a perverse kind for creation of unique boneID's across entire model
+// i.e, shared by all meshes
+typedef std::map<std::string, unsigned int> BoneNameMap;
 
 /**
  * S3DModel
@@ -159,7 +162,8 @@ struct S3DModel
 {
 	S3DModel()
 		: id(-1)
-		, numPieces(0)
+        , numPieces(0)
+        , numBones(0)
 		, textureType(-1)
 
 		, type(MODELTYPE_OTHER)
@@ -193,6 +197,7 @@ public:
 
 	int id;                     /// unsynced ID, starting with 1
 	int numPieces;
+    int numBones;
 	int textureType;            /// FIXME: MAKE S3O ONLY (0 = 3DO, otherwise S3O or OBJ)
 
 	ModelType type;
@@ -210,6 +215,7 @@ public:
 
 	S3DModelPiece* rootPiece;   /// The piece at the base of the model hierarchy
 	ModelPieceMap pieceMap;     /// Lookup table for pieces by name
+	BoneNameMap boneIndexMap;  /// Maps piece name to boneID's
 };
 
 
@@ -314,6 +320,8 @@ struct LocalModel
 	LocalModelPiece* GetPiece(unsigned int i) const { assert(HasPiece(i)); return pieces[i]; }
 	LocalModelPiece* GetRoot() const { return GetPiece(0); }
 
+	std::map<unsigned int>
+
 	void Draw() const { DrawPieces(); }
 	void DrawLOD(unsigned int lod) const {
 		if (lod > lodCount)
@@ -358,6 +366,7 @@ public:
 	unsigned int dirtyPieces;
 	unsigned int lodCount;
 
+	std::vector<LocalModelPiece*> bonePieceMap; // maps boneID's (as in vertex attribs) to instanced LocalPieces (and thus their matrices)
 	std::vector<LocalModelPiece*> pieces;
 };
 

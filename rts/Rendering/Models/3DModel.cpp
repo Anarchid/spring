@@ -161,6 +161,8 @@ LocalModelPiece* LocalModel::CreateLocalModelPieces(const S3DModelPiece* mpParen
 	LocalModelPiece* lmpParent = new LocalModelPiece(mpParent);
 	LocalModelPiece* lmpChild = NULL;
 
+	// if name of this piece's original exists in S3DModel's bone nomenclature, assign it to LocalModel's Bones id->pointer map
+
 	pieces.push_back(lmpParent);
 
 	lmpParent->SetLModelPieceIndex(pieces.size() - 1);

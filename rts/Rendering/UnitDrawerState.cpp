@@ -352,6 +352,9 @@ bool UnitDrawerStateGLSL::Init(const CUnitDrawer* ud) {
 
 	for (unsigned int n = MODEL_SHADER_NOSHADOW_STANDARD; n <= MODEL_SHADER_SHADOWED_DEFERRED; n++) {
 		modelShaders[n] = sh->CreateProgramObject("[UnitDrawer]", shaderNames[n], false);
+
+		// SKINNING: i should probably do exactly this to inject the skinning shader
+		// SKINNING: well, actually, first i should check some kind of config var :)
 		modelShaders[n]->AttachShaderObject(sh->CreateShaderObject("GLSL/ModelVertProg.glsl", extraDefs, GL_VERTEX_SHADER));
 		modelShaders[n]->AttachShaderObject(sh->CreateShaderObject("GLSL/ModelFragProg.glsl", extraDefs, GL_FRAGMENT_SHADER));
 
